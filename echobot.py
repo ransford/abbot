@@ -16,9 +16,10 @@ class EchoBotProtocol(MessageProtocol):
 
     def onMessage(self, msg):
         print str(msg)
+        reply = None
         try:
             reply = bbot.processMessage(msg)
         except:
-            print "Unhandled exception: ", sys.exc_info()[0]
+            print "Unhandled exception: ", sys.exc_info()
 
         self.send(reply)
