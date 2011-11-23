@@ -49,19 +49,47 @@ class AbbottProtocol (MessageProtocol):
         return reply
 
 class MessageActor:
-    verbs = ['help', 'echo']
+    verbs = ['help', \
+             'echo', \
+             'in', \
+             'at', \
+    ]
 
     def __init__ (self):
         pass
 
-    def help (self, args):
-        return 'Known verbs: %s' % ', '.join(self.verbs)
+    def verb_help (self, args):
+        """Usage: help [cmd]
+        Without arguments, lists available verbs.
+        With optional [cmd] arguments, shows help for verb 'cmd'."""
+        if len(args) == 1:
+            if args[0] in self.verbs:
+                return getattr(self, 'verb_%s' % args[0]).__doc__
+            else:
+                return 'Unknown verb.'
+        elif len(args) == 0:
+            return 'Known verbs: %s.' % ', '.join(self.verbs) + \
+                '\n"help <verb>" for specific help.'
 
-    def echo (self, args):
+    def verb_echo (self, args):
+        """Usage: echo string ...
+        Echos back string arguments."""
+        return ' '.join(args)
+
+    def verb_in (self, args):
+        """Usage: in N<h,m,s> string ...
+        Echos back string arguments N hours/minutes/seconds from now."""
+        # parse time argument
+        return ' '.join(args)
+
+    def verb_at (self, args):
+        """Usage: at HH:MM string ...
+        Echos back string arguments at time HH:MM."""
+        # parse time argument
         return ' '.join(args)
 
     def dispatch (self, fname, args):
-        fn = getattr(self, fname)
+        fn = getattr(self, 'verb_%s' % fname)
         return fn(args)
 
 class MessageParser:
