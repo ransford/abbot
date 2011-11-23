@@ -1,0 +1,10 @@
+abbott (Amanuensis for BusyBodies on Twisted TAC) is an XMPP bot based on
+Twisted and Wokkel.
+
+CONFIGURATION:
+ 1. Create a new XMPP account user@domain.com
+ 2. Edit abbott.tac and replace abbott@ransford.org with user@domain.com
+ 3. Put user@domain.com's password in a file 'password.txt' in this directory
+
+USAGE: twistd -ny abbott.tac
+  -or- twistd -y abbott.tac     # daemonize

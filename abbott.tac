@@ -2,15 +2,15 @@ from twisted.application import service
 from twisted.words.protocols.jabber import jid
 from wokkel.client import XMPPClient
 
-from echobot import EchoBotProtocol
+from abbott import AbbottProtocol
 
-application = service.Application("echobot")
+application = service.Application("abbott")
 
-xmppclient = XMPPClient(jid.internJID("bbot@ransford.org/bbot"), \
+xmppclient = XMPPClient(jid.internJID("abbott@ransford.org/abbott"), \
         open('password.txt').read().rstrip())
 xmppclient.logTraffic = True
-echobot = EchoBotProtocol()
-echobot.setHandlerParent(xmppclient)
+abbott = AbbottProtocol()
+abbott.setHandlerParent(xmppclient)
 xmppclient.setServiceParent(application)
 
 # vim:ft=python
