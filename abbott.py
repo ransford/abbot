@@ -1,6 +1,7 @@
 # http://metajack.im/2008/09/25/an-xmpp-echo-bot-with-twisted-and-wokkel/
 
 import sys
+from Queue import Queue
 from twisted.words.xish import domish
 from wokkel.xmppim import MessageProtocol, AvailablePresence
 
@@ -102,3 +103,13 @@ class MessageParser:
             raise RuntimeError("Unsupported verb.  Try 'help'.")
         args = string.split(' ')[1:]
         return (verb, args)
+
+class DelayedMessageQueue:
+    q = Queue(maxsize=50)
+    draining = False
+
+    def __init__ (self):
+        pass
+
+    def drainQueue (self):
+        print "Draining queue."
