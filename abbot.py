@@ -1,11 +1,20 @@
 # http://metajack.im/2008/09/25/an-xmpp-echo-bot-with-twisted-and-wokkel/
 
-import sys
-from Queue import Queue
+import re, sys
+from heapq import heappop, heappush
+from time import mktime, strptime, time, localtime
 from twisted.words.xish import domish
 from wokkel.xmppim import MessageProtocol, AvailablePresence
 
-class AbbottProtocol (MessageProtocol):
+class AbbotProtocol (MessageProtocol):
+    dmq = None
+
+    def __init__ (self):
+        self.dmq = DelayedMessageQueue()
+
+    def getDMQ (self):
+        return self.dmq
+
     def connectionMade(self):
         print "Connected!"
 
@@ -25,15 +34,21 @@ class AbbottProtocol (MessageProtocol):
 
         self.send(reply)
 
+    def makeMessage (self, m_type='chat', m_to=None, m_from=None, m_body=None):
+        m = domish.Element((None, "message"))
+        m["type"] = m_type
+        m["to"] = m_to
+        m["from"] = m_from
+        if m_body is not None:
+            m.addElement('body', content=m_body)
+        return m
+
     def processMessage (self, msg):
         # construct a basic chat reply
-        reply = domish.Element((None, "message"))
-        reply["to"] = msg["from"]
-        reply["from"] = msg["to"]
-        reply["type"] = 'chat'
+        reply = self.makeMessage('chat', msg['from'], msg['to'], None)
 
-        ma = MessageActor()
-        mp = MessageParser()
+        ma = MessageActor(self)
+        mp = MessageParser(self)
 
         if msg["type"] == 'chat' and hasattr(msg, "body"):
             try:
@@ -55,9 +70,10 @@ class MessageActor:
              'in', \
              'at', \
     ]
+    abprot = None
 
-    def __init__ (self):
-        pass
+    def __init__ (self, abprot):
+        self.abprot = abprot
 
     def verb_help (self, args):
         """Usage: help [cmd]
@@ -87,15 +103,26 @@ class MessageActor:
         """Usage: at HH:MM string ...
         Echos back string arguments at time HH:MM."""
         # parse time argument
-        return ' '.join(args)
+        stm = mktime(strptime(args[0], '%H:%M'))
+        stm = localtime()
+        m = re.match('(\d+):(\d+)', args[0])
+        stm.tm_hour = int(m.group(1))
+        stm.tm_min  = int(m.group(2))
+        print args[0], " -> ", stm
+        msg = self.abprot.makeMessage(m_to='ben@ransford.org', \
+                m_from='abbot@ransford.org', m_body=' '.join(args[1:]))
+        self.abprot.getDMQ().put(mktime(stm), msg)
+        return 'scheduled.'
 
     def dispatch (self, fname, args):
         fn = getattr(self, 'verb_%s' % fname)
         return fn(args)
 
 class MessageParser:
-    def __init__ (self):
-        pass
+    abprot = None
+
+    def __init__ (self, abprot):
+        self.abprot = abprot
 
     def parseString (self, string):
         verb = string.split(' ')[0]
@@ -105,11 +132,20 @@ class MessageParser:
         return (verb, args)
 
 class DelayedMessageQueue:
-    q = Queue(maxsize=50)
-    draining = False
+    heap = []
 
     def __init__ (self):
         pass
 
+    def put (self, msg_time, msg_obj):
+        heappush(self.heap, (msg_time, msg_obj))
+
     def drainQueue (self):
         print "Draining queue."
+        while len(self.heap):
+            (mtime, msg) = self.heap[0]
+            if time() < mtime:
+                break
+            (mtime, msg) = heappop(self.heap)
+            print "Time: ", mtime, " vs. time()=", time()
+            print "Body: ", msg.body
