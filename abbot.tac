@@ -14,7 +14,8 @@ abbot = AbbotProtocol()
 abbot.setHandlerParent(xmppclient)
 xmppclient.setServiceParent(application)
 
-dq = DelayedMessageQueue()
+dq = DelayedMessageQueue(abbot)
+abbot.setDMQ(dq)
 ts = TimerService(1, dq.drainQueue)
 ts.setServiceParent(application)
 

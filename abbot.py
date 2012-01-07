@@ -1,8 +1,11 @@
 # http://metajack.im/2008/09/25/an-xmpp-echo-bot-with-twisted-and-wokkel/
 
+# http://pleac.sourceforge.net/pleac_python/datesandtimes.html
+
 import re, sys
 from heapq import heappop, heappush
-from time import mktime, strptime, time, localtime
+from time import mktime
+from datetime import datetime, timedelta
 from twisted.words.xish import domish
 from wokkel.xmppim import MessageProtocol, AvailablePresence
 
@@ -10,7 +13,10 @@ class AbbotProtocol (MessageProtocol):
     dmq = None
 
     def __init__ (self):
-        self.dmq = DelayedMessageQueue()
+        pass
+
+    def setDMQ (self, d):
+        self.dmq = d
 
     def getDMQ (self):
         return self.dmq
@@ -53,7 +59,7 @@ class AbbotProtocol (MessageProtocol):
         if msg["type"] == 'chat' and hasattr(msg, "body"):
             try:
                 (verb, args) = mp.parseString(str(msg.body))
-                reply.addElement('body', content=str(ma.dispatch(verb, args)))
+                reply.addElement('body', content=str(ma.dispatch(verb, msg, args)))
             except RuntimeError as re:
                 reply.addElement('body', content=re.message)
             except:
@@ -75,7 +81,7 @@ class MessageActor:
     def __init__ (self, abprot):
         self.abprot = abprot
 
-    def verb_help (self, args):
+    def verb_help (self, msg, args):
         """Usage: help [cmd]
         Without arguments, lists available verbs.
         With optional [cmd] arguments, shows help for verb 'cmd'."""
@@ -88,35 +94,45 @@ class MessageActor:
             return 'Known verbs: %s.' % ', '.join(self.verbs) + \
                 '\n"help <verb>" for specific help.'
 
-    def verb_echo (self, args):
+    def verb_echo (self, msg, args):
         """Usage: echo string ...
         Echos back string arguments."""
         return ' '.join(args)
 
-    def verb_in (self, args):
+    def verb_in (self, msg, args):
         """Usage: in N<h,m,s> string ...
         Echos back string arguments N hours/minutes/seconds from now."""
         # parse time argument
         return ' '.join(args)
 
-    def verb_at (self, args):
+    def verb_at (self, msg, args):
         """Usage: at HH:MM string ...
         Echos back string arguments at time HH:MM."""
         # parse time argument
-        stm = mktime(strptime(args[0], '%H:%M'))
-        stm = localtime()
+        now = datetime.now()
+        stm = datetime.now()
         m = re.match('(\d+):(\d+)', args[0])
-        stm.tm_hour = int(m.group(1))
-        stm.tm_min  = int(m.group(2))
-        print args[0], " -> ", stm
-        msg = self.abprot.makeMessage(m_to='ben@ransford.org', \
-                m_from='abbot@ransford.org', m_body=' '.join(args[1:]))
-        self.abprot.getDMQ().put(mktime(stm), msg)
-        return 'scheduled.'
+        stm = stm.replace(hour=int(m.group(1)), minute=int(m.group(2)), \
+                second=0, microsecond=0)
 
-    def dispatch (self, fname, args):
+        # if date is in the past, it must be referring to tomorrow
+        if now > stm:
+            if (now.hour > 12) and (stm.hour < 12) and \
+                (now < (stm + timedelta(hours=12))):
+                stm = stm + timedelta(hours=12)
+            else:
+                stm = stm + timedelta(days=1)
+        print args[0], " -> ", stm
+
+        reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
+                m_body=' '.join(args[1:]))
+
+        self.abprot.getDMQ().put(stm, reply)
+        return 'scheduled for %s' % stm
+
+    def dispatch (self, fname, msg, args):
         fn = getattr(self, 'verb_%s' % fname)
-        return fn(args)
+        return fn(msg, args)
 
 class MessageParser:
     abprot = None
@@ -133,19 +149,22 @@ class MessageParser:
 
 class DelayedMessageQueue:
     heap = []
+    abprot = None
 
-    def __init__ (self):
-        pass
+    def __init__ (self, abprot):
+        if abprot.getDMQ() is None:
+            abprot.setDMQ(self)
+        self.abprot = abprot
 
     def put (self, msg_time, msg_obj):
         heappush(self.heap, (msg_time, msg_obj))
 
     def drainQueue (self):
-        print "Draining queue."
+        # print "Draining queue."
         while len(self.heap):
             (mtime, msg) = self.heap[0]
-            if time() < mtime:
+            if datetime.now() < mtime:
                 break
             (mtime, msg) = heappop(self.heap)
-            print "Time: ", mtime, " vs. time()=", time()
-            print "Body: ", msg.body
+            print "Time: ", mtime, " vs. now()=", datetime.now()
+            print "Body: ", self.abprot.send(msg)
