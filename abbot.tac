@@ -16,7 +16,7 @@ xmppclient.setServiceParent(application)
 
 dq = DelayedMessageQueue(abbot)
 abbot.setDMQ(dq)
-ts = TimerService(1, dq.drainQueue)
+ts = TimerService(10, dq.drainQueue)
 ts.setServiceParent(application)
 
 # vim:ft=python
