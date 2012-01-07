@@ -100,10 +100,27 @@ class MessageActor:
         return ' '.join(args)
 
     def verb_in (self, msg, args):
-        """Usage: in N<h,m,s> string ...
-        Echos back string arguments N hours/minutes/seconds from now."""
+        """Usage: in N<h,m> string ...
+        Echos back string arguments N hours/minutes from now."""
         # parse time argument
-        return ' '.join(args)
+        stm = datetime.now()
+        m = re.match('(\d+)([hm])', args[0])
+        if m is None:
+            return verb_in.__doc__
+
+        howmany = int(m.group(1))
+        units = m.group(2).lower()
+        if units == 'h':
+            stm = stm + timedelta(hours=howmany)
+        else: # minutes
+            stm = stm + timedelta(minutes=howmany)
+        print args[0], " -> ", stm
+
+        reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
+                m_body=' '.join(args[1:]))
+
+        self.abprot.getDMQ().put(stm, reply)
+        return 'scheduled for %s' % stm
 
     def verb_at (self, msg, args):
         """Usage: at HH:MM string ...
