@@ -1,3 +1,4 @@
 password.txt
+twistd.log
 *.pyc
 *.pid
