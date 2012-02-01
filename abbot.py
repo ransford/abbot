@@ -132,12 +132,8 @@ class MessageActor:
         stm = stm.replace(hour=int(m.group(1)), minute=int(m.group(2)), \
                 second=0, microsecond=0)
 
-        # if date is in the past, it must be referring to tomorrow
-        if now > stm:
-            if (stm.hour < now.hour) and (now < (stm + timedelta(hours=12))):
-                stm = stm + timedelta(hours=12)
-            else:
-                stm = stm + timedelta(days=1)
+        if stm < now:
+            stm = stm + timedelta(hours=12)
         print args[0], " -> ", stm
 
         reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
