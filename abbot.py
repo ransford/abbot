@@ -134,8 +134,7 @@ class MessageActor:
 
         # if date is in the past, it must be referring to tomorrow
         if now > stm:
-            if (now.hour > 12) and (stm.hour < 12) and \
-                (now < (stm + timedelta(hours=12))):
+            if (stm.hour < now.hour) and (now < (stm + timedelta(hours=12))):
                 stm = stm + timedelta(hours=12)
             else:
                 stm = stm + timedelta(days=1)
