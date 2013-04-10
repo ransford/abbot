@@ -72,6 +72,7 @@ class AbbotProtocol (MessageProtocol):
 
 class MessageActor:
     verbs = ['help', \
+             'time', \
              'echo', \
              'in', \
              'at', \
@@ -93,6 +94,11 @@ class MessageActor:
         elif len(args) == 0:
             return 'Known verbs: %s.' % ', '.join(self.verbs) + \
                 '\n"help <verb>" for specific help.'
+
+    def verb_time (self, msg, args):
+        """Usage: time
+        Echos the current time."""
+        return datetime.now().strftime('%c')
 
     def verb_echo (self, msg, args):
         """Usage: echo string ...
