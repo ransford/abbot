@@ -160,8 +160,9 @@ class MessageParser:
 
     def parseString (self, string):
         verb = string.split(' ')[0]
-        if verb not in MessageActor.verbs:
-            raise RuntimeError("Unsupported verb.  Try 'help'.")
+        if verb and verb not in MessageActor.verbs:
+            raise RuntimeError("Unsupported verb \"{}\".  " \
+                    "Try 'help'.".format(verb))
         args = string.split(' ')[1:]
         return (verb, args)
 
