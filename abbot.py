@@ -90,7 +90,7 @@ class MessageActor:
             if args[0] in self.verbs:
                 return getattr(self, 'verb_%s' % args[0]).__doc__
             else:
-                return 'Unknown verb.'
+                return 'Unknown verb "{}".'.format(args[0])
         elif len(args) == 0:
             return 'Known verbs: %s.' % ', '.join(self.verbs) + \
                 '\n"help <verb>" for specific help.'
