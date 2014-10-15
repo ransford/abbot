@@ -10,13 +10,11 @@ application = service.Application("abbot")
 xmppclient = XMPPClient(jid.internJID("abbot@ransford.org/abbot"), \
         open('password.txt').read().rstrip())
 xmppclient.logTraffic = True
-abbot = AbbotProtocol()
+dmq = DelayedMessageQueue()
+abbot = AbbotProtocol(dmq)
 abbot.setHandlerParent(xmppclient)
 xmppclient.setServiceParent(application)
-
-dq = DelayedMessageQueue(abbot)
-abbot.setDMQ(dq)
-ts = TimerService(10, dq.drainQueue)
+ts = TimerService(10, dmq.drainQueue)
 ts.setServiceParent(application)
 
 # vim:ft=python

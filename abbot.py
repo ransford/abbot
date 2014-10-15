@@ -10,19 +10,11 @@ from twisted.words.xish import domish
 from wokkel.xmppim import MessageProtocol, AvailablePresence
 
 class AbbotProtocol (MessageProtocol):
-    dmq = None
-
-    def __init__ (self):
-        pass
-
-    def setDMQ (self, d):
-        self.dmq = d
-
-    def getDMQ (self):
-        return self.dmq
+    def __init__ (self, dmq):
+        dmq.abprot = self
+        self.dmq = dmq
 
     def connectionMade(self):
-        # send initial presence
         self.send(AvailablePresence())
 
     def connectionLost(self, reason):
@@ -72,13 +64,7 @@ class AbbotProtocol (MessageProtocol):
         return reply
 
 class MessageActor:
-    verbs = ['help', \
-             'time', \
-             'echo', \
-             'in', \
-             'at', \
-    ]
-    abprot = None
+    verbs = ['help', 'time', 'echo', 'in', 'at']
 
     def __init__ (self, abprot):
         self.abprot = abprot
@@ -126,7 +112,7 @@ class MessageActor:
         reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
                 m_body=' '.join(args[1:]))
 
-        self.abprot.getDMQ().put(stm, reply)
+        self.abprot.dmq.put(stm, reply)
         return 'scheduled for %s' % stm
 
     def verb_at (self, msg, args):
@@ -146,7 +132,7 @@ class MessageActor:
         reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
                 m_body=' '.join(args[1:]))
 
-        self.abprot.getDMQ().put(stm, reply)
+        self.abprot.dmq.put(stm, reply)
         return 'scheduled for %s' % stm
 
     def dispatch (self, fname, msg, args):
@@ -168,17 +154,16 @@ class MessageParser:
         return (verb, args)
 
 class DelayedMessageQueue:
-    heap = []
-    abprot = None
-
-    def __init__ (self, abprot):
-        self.abprot = abprot
+    def __init__ (self):
+        self.heap = []
+        self.abprot = None
 
     def put (self, msg_time, msg_obj):
         heappush(self.heap, (msg_time, msg_obj))
 
     def drainQueue (self):
-        # print "Draining queue."
+        if not self.abprot:
+            return
         while len(self.heap):
             (mtime, msg) = self.heap[0]
             if datetime.now() < mtime:
