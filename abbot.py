@@ -7,6 +7,7 @@ from heapq import heappop, heappush
 from time import mktime
 from datetime import datetime, timedelta
 from twisted.words.xish import domish
+from twisted.python import log
 from wokkel.xmppim import MessageProtocol, AvailablePresence
 
 class AbbotProtocol (MessageProtocol):
@@ -17,15 +18,12 @@ class AbbotProtocol (MessageProtocol):
     def connectionMade(self):
         self.send(AvailablePresence())
 
-    def connectionLost(self, reason):
-        pass
-
     def onMessage(self, msg):
         reply = None
         try:
             reply = self.processMessage(msg)
         except:
-            print "Unhandled exception: ", sys.exc_info()
+            log.err()
 
         self.send(reply)
 
@@ -43,21 +41,21 @@ class AbbotProtocol (MessageProtocol):
         reply = self.makeMessage('chat', msg['from'], msg['to'], None)
 
         ma = MessageActor(self)
-        mp = MessageParser(self)
+        mp = MessageParser()
 
-        print msg
+        log.msg('Message: {}'.format(msg['from']))
         if msg["type"] == 'chat':
-            if hasattr(msg, "body"):
+            if msg.body:
                 try:
                     (verb, args) = mp.parseString(str(msg.body))
                     reply.addElement('body', content=str(ma.dispatch(verb, msg, args)))
                 except RuntimeError as re:
                     reply.addElement('body', content=re.message)
                 except:
-                    print "Unhandled exception: ", sys.exc_info()
+                    log.msg("Unhandled exception: {}".format(str(sys.exc_info())))
                     reply.addElement('body', content="Unknown error.")
             else:
-                pass
+                log.msg('no message body')
         else:
             reply.addElement('body', content="Unsupported message format.")
 
@@ -107,7 +105,7 @@ class MessageActor:
             stm = stm + timedelta(hours=howmany)
         else: # minutes
             stm = stm + timedelta(minutes=howmany)
-        print args[0], " -> ", stm
+        log.msg("{} -> {}".format(args[0], stm))
 
         reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
                 m_body=' '.join(args[1:]))
@@ -127,7 +125,7 @@ class MessageActor:
 
         if stm < now:
             stm = stm + timedelta(hours=12)
-        print args[0], " -> ", stm
+        log.msg("{} -> {}".format(args[0], stm))
 
         reply = self.abprot.makeMessage(m_to=msg['from'],  m_from=msg['to'], \
                 m_body=' '.join(args[1:]))
@@ -139,12 +137,7 @@ class MessageActor:
         fn = getattr(self, 'verb_%s' % fname)
         return fn(msg, args)
 
-class MessageParser:
-    abprot = None
-
-    def __init__ (self, abprot):
-        self.abprot = abprot
-
+class MessageParser (object):
     def parseString (self, string):
         verb = string.split(' ')[0]
         if verb and verb not in MessageActor.verbs:
@@ -153,7 +146,7 @@ class MessageParser:
         args = string.split(' ')[1:]
         return (verb, args)
 
-class DelayedMessageQueue:
+class DelayedMessageQueue (object):
     def __init__ (self):
         self.heap = []
         self.abprot = None
@@ -169,5 +162,5 @@ class DelayedMessageQueue:
             if datetime.now() < mtime:
                 break
             (mtime, msg) = heappop(self.heap)
-            print "Time: ", mtime, " vs. now()=", datetime.now()
-            print "Body: ", self.abprot.send(msg)
+            log.msg("Time: {} vs. now()={}".format(mtime, datetime.now()))
+            log.msg("Body: {}".format(self.abprot.send(msg)))
