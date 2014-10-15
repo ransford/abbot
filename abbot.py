@@ -1,6 +1,6 @@
-# http://metajack.im/2008/09/25/an-xmpp-echo-bot-with-twisted-and-wokkel/
-
-# http://pleac.sourceforge.net/pleac_python/datesandtimes.html
+# References:
+#  http://metajack.im/2008/09/25/an-xmpp-echo-bot-with-twisted-and-wokkel/
+#  http://pleac.sourceforge.net/pleac_python/datesandtimes.html
 
 import re, sys
 from heapq import heappop, heappush
@@ -22,16 +22,13 @@ class AbbotProtocol (MessageProtocol):
         return self.dmq
 
     def connectionMade(self):
-        print "Connected!"
-
         # send initial presence
         self.send(AvailablePresence())
 
     def connectionLost(self, reason):
-        print "Disconnected!"
+        pass
 
     def onMessage(self, msg):
-        print str(msg)
         reply = None
         try:
             reply = self.processMessage(msg)
@@ -56,15 +53,19 @@ class AbbotProtocol (MessageProtocol):
         ma = MessageActor(self)
         mp = MessageParser(self)
 
-        if msg["type"] == 'chat' and hasattr(msg, "body"):
-            try:
-                (verb, args) = mp.parseString(str(msg.body))
-                reply.addElement('body', content=str(ma.dispatch(verb, msg, args)))
-            except RuntimeError as re:
-                reply.addElement('body', content=re.message)
-            except:
-                print "Unhandled exception: ", sys.exc_info()
-                reply.addElement('body', content="Unknown error.")
+        print msg
+        if msg["type"] == 'chat':
+            if hasattr(msg, "body"):
+                try:
+                    (verb, args) = mp.parseString(str(msg.body))
+                    reply.addElement('body', content=str(ma.dispatch(verb, msg, args)))
+                except RuntimeError as re:
+                    reply.addElement('body', content=re.message)
+                except:
+                    print "Unhandled exception: ", sys.exc_info()
+                    reply.addElement('body', content="Unknown error.")
+            else:
+                pass
         else:
             reply.addElement('body', content="Unsupported message format.")
 
@@ -171,8 +172,6 @@ class DelayedMessageQueue:
     abprot = None
 
     def __init__ (self, abprot):
-        if abprot.getDMQ() is None:
-            abprot.setDMQ(self)
         self.abprot = abprot
 
     def put (self, msg_time, msg_obj):
